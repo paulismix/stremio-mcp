@@ -1,94 +1,114 @@
 # Stremio MCP Server
 
-MCP server pro práci se Stremio addon protokolem. Umožňuje AI asistentům (Claude Desktop, Claude Code…) vyhledávat filmy a seriály, číst metadata a dotazovat se libovolných Stremio addonů.
+MCP server for working with the Stremio addon protocol. Enables AI assistants (Claude Desktop, Claude Code, …) to search for movies and TV shows, read metadata, and query any Stremio addon.
 
-## Nástroje
+## Tools
 
-### Addon protokol (veřejné, bez přihlášení)
+### Addon protocol (public, no login required)
 
-| Nástroj | Popis |
+| Tool | Description |
 |---|---|
-| `stremio_search` | Vyhledá filmy/seriály podle názvu (přes oficiální Cinemeta addon) |
-| `stremio_get_meta` | Detailní metadata titulu podle IMDb ID (popis, žánry, herci, režie, u seriálů přehled epizod) |
-| `stremio_browse_catalog` | Procházení katalogů – populární tituly, filtrování podle žánru nebo roku, stránkování |
-| `stremio_get_addon_manifest` | Načte manifest libovolného addonu (co umí, jaké má katalogy a typy) |
-| `stremio_get_streams` | Získá seznam streamů pro titul z libovolného addonu (u seriálů zadej `season` + `episode`) |
+| `stremio_search` | Search movies/series by name (via the official Cinemeta addon) |
+| `stremio_get_meta` | Detailed metadata for a title by IMDb ID (description, genres, cast, director; episode list for series) |
+| `stremio_browse_catalog` | Browse catalogs – popular titles, filter by genre or year, pagination |
+| `stremio_get_addon_manifest` | Fetch the manifest of any addon (capabilities, catalogs, supported types) |
+| `stremio_get_streams` | Get stream list for a title from any addon (for series provide `season` + `episode`) |
 
-### Uživatelský účet a knihovna (vyžaduje přihlášení)
+### User account & library (requires login)
 
-| Nástroj | Popis |
+| Tool | Description |
 |---|---|
-| `stremio_login` | Přihlásí se e-mailem a heslem, uloží `authKey` pro zbytek session |
-| `stremio_get_library` | Načte knihovnu přihlášeného uživatele (filtrování podle typu, stránkování) |
-| `stremio_add_to_library` | Přidá film nebo seriál do knihovny (metadata stáhne automaticky z Cinemeta) |
-| `stremio_remove_from_library` | Odebere titul z knihovny (soft-delete, stejně jako nativní Stremio) |
+| `stremio_login` | Log in with email and password; stores `authKey` for the lifetime of the server process |
+| `stremio_get_library` | Fetch the authenticated user's library (filter by type, pagination) |
+| `stremio_add_to_library` | Add a movie or series to the library (metadata fetched automatically from Cinemeta) |
+| `stremio_remove_from_library` | Remove a title from the library (soft-delete, same behaviour as native Stremio) |
 
-## Instalace
+## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-(Vyžaduje Python 3.10+.)
+(Requires Python 3.10+.)
 
-## Rychlý test
+## Quick test
 
 ```bash
 python stremio_mcp.py
 ```
 
-Server běží přes stdio – po spuštění čeká na MCP klienta. Pro interaktivní testování použij MCP Inspector:
+The server runs over stdio – after startup it waits for an MCP client. For interactive testing use MCP Inspector:
 
 ```bash
 npx @modelcontextprotocol/inspector python stremio_mcp.py
 ```
 
-## Zapojení do Claude Desktop
+## Claude Desktop integration
 
-Do `claude_desktop_config.json` přidej:
+Add the following to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "stremio": {
       "command": "python",
-      "args": ["/absolutni/cesta/k/stremio_mcp.py"]
+      "args": ["/absolute/path/to/stremio_mcp.py"]
     }
   }
 }
 ```
 
-Umístění konfiguračního souboru:
+Config file location:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
-Po restartu Claude Desktop se nástroje objeví automaticky.
+Restart Claude Desktop after saving – the tools will appear automatically.
 
-## Příklady použití (prompty pro asistenta)
+## Authentication
 
-- „Najdi mi film Inception a řekni mi o něm detaily.“
-- „Jaké jsou teď populární sci-fi seriály?“
-- „Načti manifest addonu https://example.com/manifest.json a zjisti, jestli umí streamy.“
-- „Z addonu X mi vytáhni streamy pro Breaking Bad S02E05.“
+Three options for tools that require a logged-in user:
 
-## Autentizace
+**Option A – log in at runtime** (recommended for interactive use):
+Call the `stremio_login` tool with your email and password. The `authKey` is stored in server memory for the duration of the process.
 
-Pro nástroje pracující s knihovnou existují dvě možnosti:
-
-**Varianta A – přihlásit se za běhu** (doporučeno pro interaktivní použití):
-Zavolej nástroj `stremio_login` s e-mailem a heslem. `authKey` se uloží do paměti serveru a platí po celou dobu jeho běhu.
-
-**Varianta B – env proměnná** (doporučeno pro automatizaci):
-Nastav `STREMIO_AUTH_KEY` před spuštěním serveru:
+**Option B – pre-obtained auth key** (recommended for automation):
+Set `STREMIO_AUTH_KEY` before starting the server:
 ```bash
-STREMIO_AUTH_KEY=tvůj_klíč python stremio_mcp.py
+STREMIO_AUTH_KEY=your_key python stremio_mcp.py
 ```
-Klíč zjistíš po přihlášení přes `stremio_login` (pole `auth_key` v odpovědi).
+You can obtain the key by calling `stremio_login` once and copying the `auth_key` field from the response.
 
-## Poznámky
+**Option C – credentials in `.mcp.json`** (recommended for Claude Code projects):
+Store your email and password as environment variables directly in `.mcp.json`. The server reads them on startup and logs in automatically – no manual `stremio_login` call needed.
 
-- Identifikátorem titulů je IMDb ID (`tt1375666`). Vrací ho `stremio_search` i katalogy.
-- Cinemeta poskytuje jen metadata, **ne streamy** – pro `stremio_get_streams` musíš zadat URL addonu, který resource `stream` podporuje (ověříš přes `stremio_get_addon_manifest`).
-- Server podporuje i `stremio://` deep-link URL – automaticky je převede na `https://`.
-- Nástroje pro čtení (vyhledávání, metadata, katalogy) nevyžadují žádný klíč.
+```json
+{
+  "mcpServers": {
+    "stremio": {
+      "command": "/absolute/path/to/.venv/bin/python3",
+      "args": ["/absolute/path/to/stremio_mcp.py"],
+      "env": {
+        "STREMIO_EMAIL": "your@email.com",
+        "STREMIO_PASSWORD": "yourpassword"
+      }
+    }
+  }
+}
+```
+
+> `.mcp.json` is listed in `.gitignore` so credentials are never committed to the repository.
+
+## Usage examples (prompts for the assistant)
+
+- "Find the movie Inception and tell me about it."
+- "What are the popular sci-fi series right now?"
+- "Load the manifest from https://example.com/manifest.json and check if it supports streams."
+- "Get streams for Breaking Bad S02E05 from addon X."
+
+## Notes
+
+- Titles are identified by IMDb ID (e.g. `tt1375666`). Both `stremio_search` and catalog tools return it.
+- Cinemeta provides metadata only, **not streams** – for `stremio_get_streams` you must supply a URL of an addon that supports the `stream` resource (verify via `stremio_get_addon_manifest`).
+- The server also accepts `stremio://` deep-link URLs – they are converted to `https://` automatically.
+- Read-only tools (search, metadata, catalogs) do not require any authentication.

@@ -11,6 +11,7 @@ MCP server pro praci se Stremio addon protokolem:
 Spusteni: python stremio_mcp.py  (stdio transport)
 """
 
+import asyncio
 import json
 import os
 from datetime import datetime, timezone
@@ -34,6 +35,24 @@ mcp = FastMCP("stremio_mcp")
 
 # Auth key sdileny v ramci procesu; inicializuje se z env promenne.
 _auth_key: str | None = os.environ.get("STREMIO_AUTH_KEY")
+
+
+async def _auto_login() -> None:
+    """Login using STREMIO_EMAIL + STREMIO_PASSWORD env vars if no auth key is set."""
+    global _auth_key
+    if _auth_key:
+        return
+    email = os.environ.get("STREMIO_EMAIL")
+    password = os.environ.get("STREMIO_PASSWORD")
+    if not (email and password):
+        return
+    try:
+        result = await _api_post("login", {"email": email, "password": password, "facebook": False})
+        key = result.get("authKey")
+        if key:
+            _auth_key = key
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -741,4 +760,5 @@ async def stremio_remove_from_library(params: LibraryItemInput) -> str:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    asyncio.run(_auto_login())
     mcp.run()
