@@ -25,15 +25,65 @@ MCP server for working with the Stremio addon protocol. Enables AI assistants (C
 
 ## Installation
 
+### 1. Clone the repository
+
 ```bash
+git clone https://github.com/yourusername/stremio-mcp.git
+cd stremio-mcp
+```
+
+### 2. Create a virtual environment and install dependencies
+
+**macOS / Linux**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+**Windows (Command Prompt)**
+
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+**Windows (PowerShell)**
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+> If you get an execution-policy error in PowerShell, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` once and retry.
+
 (Requires Python 3.10+.)
+
+### 3. Find the path to the virtual-environment Python
+
+You will need the **absolute path** to the Python binary inside `.venv` when configuring Claude Desktop or Claude Code.
+
+**macOS / Linux**
+
+```bash
+# run from the project root
+$(pwd)/.venv/bin/python3
+```
+
+**Windows**
+
+```cmd
+# run from the project root – note the backslashes
+%CD%\.venv\Scripts\python.exe
+```
 
 ## Quick test
 
 ```bash
+# activate the venv first (see above), then:
 python stremio_mcp.py
 ```
 
@@ -43,27 +93,59 @@ The server runs over stdio – after startup it waits for an MCP client. For int
 npx @modelcontextprotocol/inspector python stremio_mcp.py
 ```
 
-## Claude Desktop integration
+## Claude Desktop integration (global)
 
-Add the following to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "stremio": {
-      "command": "python",
-      "args": ["/absolute/path/to/stremio_mcp.py"]
-    }
-  }
-}
-```
+Open (or create) `claude_desktop_config.json` and add the `stremio` block inside `mcpServers`. Replace the paths with the actual absolute paths on your machine.
 
 Config file location:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
+**macOS / Linux**
+
+```json
+{
+  "mcpServers": {
+    "stremio": {
+      "command": "/absolute/path/to/stremio-mcp/.venv/bin/python3",
+      "args": ["/absolute/path/to/stremio-mcp/stremio_mcp.py"]
+    }
+  }
+}
+```
+
+**Windows**
+
+```json
+{
+  "mcpServers": {
+    "stremio": {
+      "command": "C:\\absolute\\path\\to\\stremio-mcp\\.venv\\Scripts\\python.exe",
+      "args": ["C:\\absolute\\path\\to\\stremio-mcp\\stremio_mcp.py"]
+    }
+  }
+}
+```
+
 Restart Claude Desktop after saving – the tools will appear automatically.
+
+> **Tip – pre-set credentials in Claude Desktop config:** you can pass your Stremio credentials as environment variables so the server logs in automatically on startup:
+>
+> ```json
+> {
+>   "mcpServers": {
+>     "stremio": {
+>       "command": "/absolute/path/to/.venv/bin/python3",
+>       "args": ["/absolute/path/to/stremio_mcp.py"],
+>       "env": {
+>         "STREMIO_EMAIL": "your@email.com",
+>         "STREMIO_PASSWORD": "yourpassword"
+>       }
+>     }
+>   }
+> }
+> ```
 
 ## Authentication
 
